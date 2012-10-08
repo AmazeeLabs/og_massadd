@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * @file
+ * Installs the og_massadd module
+ *
+ */
+
+/**
+ * Implementation of hook_requirements().
+ */
+function og_massadd_requirements($phase) {
+  $t = get_t();
+  $requirements = array();
+
+  if ($phase=="runtime") {
+
+/*
+    $certificate_path = variable_get('certify_certificate_path', FALSE);
+    $pathreq = array('title' => $t('Certify path required'), 'description' => $t('Certificate path needs to be set to a directory writable by the webserver.'), 'severity' => REQUIREMENT_ERROR);
+
+    if (!$certificate_path || !is_dir($certificate_path)) {
+      $requirements['pathexists'] = $pathreq;
+    }
+    if (!is_writable($certificate_path)) {
+      $requirements['pathexists'] = $pathreq;
+    }
+*/
+  }
+  return $requirements;
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function og_massadd_install() {
+//  variable_set('certify_certificate_path', '/var/drupal-content/certify/');
+  drupal_set_message(st("Organic Groups Mass Add settings are available under !link",
+    array( '!link' => l(st('Administer > Site configuration > OG Mass Add'),  'admin/settings/og_massadd/settings' ) )
+  ));
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function og_massadd_uninstall() {
+//  variable_del('certify_certificate_path');
+}
+

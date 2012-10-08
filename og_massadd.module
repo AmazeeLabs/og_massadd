@@ -1,0 +1,410 @@
+<?php
+
+/**
+ * @file
+ * The og_massadd module file
+ */
+
+// !** General functions
+
+/**
+ * Implementation of hook_perm().
+ */
+function og_massadd_perm() {
+  return array(
+    'mass add and create users',
+    );
+}
+
+
+/**
+ * Implement hook_menu
+ */
+function og_massadd_menu() {
+
+  $items['admin/settings/og_massadd'] = array(
+  'title' => 'og_massadd',
+  'description' => 'Configure og_massadd',
+  'page callback' => 'drupal_get_form',
+  'page arguments' => array('og_massadd_admin_settings'),
+  'access callback' => 'user_access',
+  'access arguments' => array('administer site configuration'),
+  'type' => MENU_NORMAL_ITEM,
+  'file' => 'og_massadd.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implement hook_menu_alter
+ */
+function og_massadd_menu_alter(&$items) {
+
+  if (!empty($items['og/users/%node/add_user'])) {
+    $items['og/users/%node/add_user']['page callback'] = 'og_massadd_massadd';
+    $items['og/users/%node/add_user']['page arguments'] = array(2);
+  }
+}
+
+/**
+ * Mass adding users tab
+ */
+function og_massadd_massadd($node) {
+  return drupal_get_form('og_massadd_massadd_form',$node);
+}
+
+/**
+ * Mass adding users form
+ */
+function og_massadd_massadd_form(&$form_state, $node) {
+
+  global $user;
+
+  $ogsubs = og_get_subscriptions($user->uid);
+  $ogs = array();
+  foreach ($ogsubs as $i => $ogsub) {
+    if ($ogsub['is_admin'] || $ogsub['nid'] == $node->nid)
+      $ogs[$ogsub['nid']] = $ogsub['title'];
+  }
+  
+  $form['ogs'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Groups to add the user to'),
+    '#options' => $ogs,
+    '#default_value' => array($node->nid),
+    '#required' => TRUE,
+  );
+
+  $form['massadd'] = array(
+    '#type' => 'textarea',
+    '#title' => t('List of users to add'),
+    '#description' => t('A list of users to add. The contents can either be lines consiting of FIRSTNAME, LASTNAME, EMAIL or FIRSTNAME, LASTNAME, EMAIL, USERNAME or a list of email addresses (one on each line).'),
+    '#rows' => 20,
+    '#default_value' => '',
+  );
+
+/*
+  $form['#attributes'] = array('enctype' => "multipart/form-data");
+  $form['massadd_csv'] = array(
+    '#type' => 'file',
+    '#title' => t('Upload a CSV file of users.'),
+    '#description' => t('Upload a CSV file with users to add. We will attempt to autodetect the format. If that fails, FIRSTNAME, LASTNAME, EMAIL is assumed.')
+  );
+*/
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add users'),
+  );
+  
+  return $form;
+}
+
+/**
+ * Mass adding users validation
+ */
+function og_massadd_massadd_form_validate($form, &$form_state) {
+  $gotfile = (isset($_FILES['files']) && $_FILES['files']['name']['massadd_csv'] && is_uploaded_file($_FILES['files']['tmp_name']['massadd_csv']));
+  if (!trim($form_state['values']['massadd']) && !$gotfile) {
+    form_set_error('massadd', t("No users to add!"));
+  }
+  else if (trim($form_state['values']['massadd']) && !_og_massadd_textareavalidate($form_state['values']['massadd'])) {
+    form_set_error('massadd', t("Unknown format of userlist!"));
+  }
+}
+
+/**
+ * Validate text area contents
+ */
+function _og_massadd_textareavalidate($input) {
+  $data = explode("\n",$input);
+  foreach ($data as $i => $line) {
+    if (trim($line)) {
+      $line = array_map("trim", explode(",", $line));
+      if (!(count($line) > 0 && count($line) < 5)) // Check number of fields 1-5
+        return FALSE;
+      if (count($line) == 5) {
+        $email = $line[3];
+      } else {
+        $email = end($line);
+      }
+      if (!valid_email_address($email) || empty($email)) {
+        return FALSE;
+      }
+    }
+  }
+  return TRUE;
+}
+
+/**
+ * Mass adding users submit function
+ */
+function og_massadd_massadd_form_submit($form, &$form_state) {
+
+  _og_massadd_fromstring($form_state['values']['massadd'], $form_state['values']['ogs']);
+
+}
+
+/**
+ * Mass adding users from string input
+ */
+function _og_massadd_fromstring($input,$groups) {
+
+  // Fill our data array
+  $data = explode("\n",$input);
+  foreach ($data as $i => $line) {
+    if (trim($line)) {
+      $data[$i] = array_map("trim", explode(",", $line));
+    }
+    else {
+      unset($data[$i]);
+    }
+  }
+
+  $status = array("new" => array(), "failed" => array(), "existing" => array());
+  foreach($data as $line) {
+    $address = _og_massadd_adduser($line,$groups);
+    if ($address === FALSE) {
+      $status['failed'][] = implode(",",$line);
+    }
+    else if ($address == 0) {
+      $status['existing'][] = implode(",",$line);
+    }
+    else if ($address == 1) {
+      $status['new'][] = implode(",",$line);
+    }
+  }
+
+  if (count($status['new'])) {
+    drupal_set_message(t("The following users were created and added to the group(s):") . "<br />" . implode("<br />",$status['new']));
+  }
+
+  if (count($status['existing'])) {
+    drupal_set_message(t("The following users already had an account and were added to the group(s):") . "<br />" . implode("<br />",$status['existing']));
+  }
+
+  if (count($status['failed'])) {
+    drupal_set_message(t("The following users could not be added:") . "<br />" . implode("<br />",$status['failed']),'error');
+  }
+
+}
+
+
+/**
+ * Actually adding something
+ * Returns FALSE if the user couldn't be created, 0 if the user existed and 1 if it was created.
+ */
+function _og_massadd_adduser($user,$groups) {
+
+  $newuser = array();
+  if (count($user) == 1) {
+    $firstname = "";
+    $lastname = "";
+    $mail = reset($user);
+    $desiredname = "";
+  }
+  else if (count($user) == 2) {
+    $firstname = reset($user);
+    $lastname = "";
+    $mail = end($user);
+    $desiredname = "";
+  }
+  else if (count($user) == 3) {
+    $firstname = reset($user);
+    $lastname = next($user);
+    $mail = end($user);
+    $desiredname = "";
+  }
+  else if (count($user) >= 4) {
+    $firstname = reset($user);
+    $lastname = next($user);
+    $mail = next($user);
+    $desiredname = end($user);
+  }
+  else {
+//dpm('Unable to count fields');
+    return FALSE;
+  }
+
+  $didcreate = 0;
+  
+  // If it looks like a mail address, try to look up user
+  if (valid_email_address($mail)) {
+    $account = user_load(array('mail' => check_plain($mail)));
+  }
+
+  // If not, try to check for usernames
+  if (!$account && strlen($mail)) {
+    $account = user_load(array('name' => check_plain($mail)));
+  }
+
+  // Create user if necessary
+  if (!$account && !valid_email_address($mail)) {
+//dpm($mail, 'Not valid email address');
+    return FALSE;
+  }
+  else if (!$account && valid_email_address($mail)) {
+    if (!user_access('mass add and create users') || !variable_get("og_massadd_createunknowns",FALSE)) {
+//dpm('Not allowed to create unknowns');
+      return FALSE;
+    }
+
+    $newuser['mail'] = $mail;
+    $newuser['pass'] = user_password();
+    $newuser['init'] = $newuser['mail'];
+    $newuser['status'] = 1;
+    // 20 attempts should be enough for anybody (tm)
+
+    for ($attempt = 0 ; $attempt <= 20 ; $attempt++) {
+      $newuser['name'] = _og_massadd_createusername($mail, $firstname, $lastname, $desiredname, $attempt);
+      if ($newuser['name'] !== FALSE && !db_result(db_query("SELECT count(*) FROM {users} WHERE name = '%s'", check_plain($newuser['name'])))) {
+        $account = user_save(NULL, $newuser);
+        if ($account !== FALSE) {
+          $account->password = $newuser['pass'];
+          _user_mail_notify('register_no_approval_required', $account);
+          $didcreate = 1;
+          break; // Got user, end tries
+        }
+      }
+    }
+
+    if (!$account) {  // Exhausted attempts, give up
+//dpm('Unable to find available username');
+      return FALSE;
+    }
+  }
+
+  $profilenode = module_exists('content_profile') ? variable_get('og_massadd_profilenode', '') : '';
+
+  if ($profilenode) {
+    $fname = variable_get('og_massadd_profilefname', 'firstname');
+    $lname = variable_get('og_massadd_profilelname', 'lastname');
+    $profilenodes = array_keys(content_profile_get_types('names'));
+    // Create content profile
+    $profile_node = new stdClass();
+    $profile_node->title = $account->name;
+    $profile_node->body = '';
+    $profile_node->type = $profilenode;   // Your specified content type
+    $profile_node->created = time();
+    $profile_node->changed = time();
+    $profile_node->status = 1;
+    $profile_node->promote = 0;
+    $profile_node->sticky = 0;
+    $profile_node->uid = $account->uid; // UID of content owner
+    if (strlen($fname) && content_fields($fname, $profilenode)) {
+      $profile_node->{$fname}[0]['value'] = $firstname;
+    }
+    if (strlen($lname) && content_fields($lname, $profilenode)) {
+      $profile_node->{$lname}[0]['value'] = $lastname;
+    }
+    node_save($profile_node); // Actually, we don't care if this fails for now. We need better field-handling first.
+  }
+
+
+  // Add user to groups
+  foreach ($groups as $gid) {
+    if ($gid) {
+      og_save_subscription($gid, $account->uid, array('is_active' => 1));
+      $groupnode = node_load($gid);
+      $variables = array(
+        '@title' => $groupnode->title,
+        '!group_url'=> url("node/$groupnode->nid", array('absolute' => TRUE))
+      );
+      drupal_mail('og', 'approve_user', $account->mail, user_preferred_language($account), $variables);
+
+    }
+  }
+  
+  return $didcreate;
+}
+
+/**
+ * Generate a preferred username
+ */
+function _og_massadd_createusername($email, $firstname = '', $lastname = '', $suggestion = '', $attempt = 0) {
+
+/*
+
+The following combinations are tried in order:
+
+1: If one is provided, the suggested username
+2. The first part of the email address (everything before the @)
+3. If both firstname and lastname is provided, "F.L".
+   F is x number of letters from firstname, where x starts at 1 and goes up to the full length of firstname.
+   L is lastname.
+4. If firstname is provided without lastname, firstname only.
+5. If lastname is provided without firstname, lastname only.
+6. If both firstname and lastname is provided, try adding numbers 1 and up to a name formatted as F.Lastname where F is the first letter of firstname.
+7. Last (only performed if the previous combination didn't) add numbers 1 and up to the first part of the email address.
+
+*/
+
+  $usernames = array();
+  $numbered = array();
+  
+  // First, create the verbatim names to try
+
+  // #1 pri: suggested username
+  if (!empty($suggestion)) {
+    $usernames[] = $suggestion;
+  }
+  
+  // #2 pri: first part of email address (always present)
+  preg_match('/^(.+)(?:@)/', $email, $matches);
+  if (!empty($matches[1])) {
+    $usernames[] = $matches[1];
+  } else {
+    return FALSE; // We DO need a valid mail address
+  }
+
+  // #3 pri: username on the form of [x number of letters from first name, starting from 1 and up].[lastname]
+  if (!empty($firstname) && !empty($lastname)) {
+    for ($i = 1 ; $i < strlen($firstname) ; $i++) {
+      $username = '';
+      if (!empty($firstname)) { // Add firstname if present
+        $username .= drupal_substr($firstname, 0, ($i));
+      }
+      if (!empty($firstname) && !empty($lastname)) // Add divider between first and last name
+        $username .= '.';
+      if (!empty($lastname)) { // Add lastname
+        $username .= $lastname;
+      }
+      $usernames[] = $username;
+    }
+  }
+  
+  // #4 pri: if no lastname, use firstname only
+  if (!empty($firstname) && empty($lastname)) {
+    $usernames[] = $firstname;
+  }
+  
+  // #5 pri: if no firstname, use lastname only
+  if (empty($firstname) && !empty($lastname)) {
+    $usernames[] = $lastname;
+  }
+  
+  // Create names to add numbers to as last resort. Different priorities than the verbatim names
+  
+  // #1 pri: [first letter of first name].[lastname]
+  if (!empty($firstname) && !empty($lastname)) {
+    $numbered[] = drupal_substr($firstname, 0, 1) . '.' . $lastname;
+  }
+
+  // #2 pri: first part of email address (always present)
+  preg_match('/^(.+)(?:@)/', $email, $matches);
+  if (!empty($matches[1])) {
+    $numbered[] = $matches[1];
+  }
+
+  // If our attempt exists in the verbatim table, return it
+  if (isset($usernames[$attempt])) {
+    return $usernames[$attempt];
+  }
+  
+  // Generate a numbered attempt using the first entry in the numbered table.
+  $attempt = $attempt - count($usernames);
+  return reset($numbered) . ($attempt +1 );
+
+}
+
