@@ -47,7 +47,6 @@ function og_massadd_admin_settings() {
 
 
   return system_settings_form($form);
-
 }
 
 /**
@@ -63,17 +62,15 @@ function og_massadd_admin_settings_validate($form, $form_state) {
     }
 
     $fname = $form_state['values']['og_massadd_profilefname'];
-    if (strlen($profilenode) && strlen($fname) && !content_fields($fname,$profilenode)) {
+    if (strlen($profilenode) && strlen($fname) && !content_fields($fname, $profilenode)) {
       form_set_error('og_massadd_profilefname', t('Please choose a field for the user\'s first name or leave empty.'));
     }
 
     $lname = $form_state['values']['og_massadd_profilelname'];
-    if (strlen($profilenode) && strlen($lname) && !content_fields($lname,$profilenode)) {
+    if (strlen($profilenode) && strlen($lname) && !content_fields($lname, $profilenode)) {
       form_set_error('og_massadd_profilelname', t('Please choose a field for the user\'s last name or leave empty.'));
     }
-
   }
-
 }
 
   

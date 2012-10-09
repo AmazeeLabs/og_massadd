@@ -13,7 +13,7 @@ function og_massadd_requirements($phase) {
   $t = get_t();
   $requirements = array();
 
-  if ($phase=="runtime") {
+  if ($phase == "runtime") {
 
 /*
     $certificate_path = variable_get('certify_certificate_path', FALSE);
@@ -36,7 +36,7 @@ function og_massadd_requirements($phase) {
 function og_massadd_install() {
 //  variable_set('certify_certificate_path', '/var/drupal-content/certify/');
   drupal_set_message(st("Organic Groups Mass Add settings are available under !link",
-    array( '!link' => l(st('Administer > Site configuration > OG Mass Add'),  'admin/settings/og_massadd/settings' ) )
+    array( '!link' => l(st('Administer > Site configuration > OG Mass Add'),  'admin/config/og_massadd' ) )
   ));
 }
 

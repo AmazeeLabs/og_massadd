@@ -8,12 +8,14 @@
 // !** General functions
 
 /**
- * Implementation of hook_perm().
+ * Implementation of hook_permission().
  */
-function og_massadd_perm() {
+function og_massadd_permission() {
   return array(
-    'mass add and create users',
-    );
+    'mass add and create users' => array(
+      'title' => t('OG mass add and create users'),
+      'description' => t('TODO Add a description for \'mass add and create users\'')
+    ));
 }
 
 
@@ -22,57 +24,86 @@ function og_massadd_perm() {
  */
 function og_massadd_menu() {
 
-  $items['admin/settings/og_massadd'] = array(
-  'title' => 'og_massadd',
-  'description' => 'Configure og_massadd',
-  'page callback' => 'drupal_get_form',
-  'page arguments' => array('og_massadd_admin_settings'),
-  'access callback' => 'user_access',
-  'access arguments' => array('administer site configuration'),
-  'type' => MENU_NORMAL_ITEM,
-  'file' => 'og_massadd.admin.inc',
+  $items['admin/config/og_massadd'] = array(
+    'title' => 'og_massadd',
+    'description' => 'Configure og_massadd',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_massadd_admin_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'og_massadd.admin.inc',
+  );
+
+  $items['group/%/%/admin/people/mass-add-user'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('og_massadd_massadd_form', 1, 2),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5,
+    'title' => 'Mass upload of user',
+    'access callback' => 'og_ui_user_access_group',
+    'access arguments' => array('add user', 1, 2),
+  );
+
+  $items['group/%/%/admin/people/mass-add-user-filter'] = array(
+    'page callback' => 'og_mass_add_user_filter',
+    'page arguments' => array(1, 2),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 4,
+    'title' => 'Find and Add Members',
+    'access callback' => 'og_ui_user_access_group',
+    'access arguments' => array('add user', 1, 2),
   );
 
   return $items;
 }
 
-/**
- * Implement hook_menu_alter
- */
-function og_massadd_menu_alter(&$items) {
+function og_mass_add_user_filter($group_type, $group_id) {
 
-  if (!empty($items['og/users/%node/add_user'])) {
-    $items['og/users/%node/add_user']['page callback'] = 'og_massadd_massadd';
-    $items['og/users/%node/add_user']['page arguments'] = array(2);
+  if (is_numeric($group_id)) {
+    og_context($group_type, node_load($group_id));
+    $view = views_get_view('og_massadd');
+    $view->set_arguments(array($group_id));
+    $view->set_display('block_1');
+    $view->pre_execute();
+    $view->execute();
+    $content = $view->render();
+    return $content;
   }
 }
 
-/**
- * Mass adding users tab
- */
-function og_massadd_massadd($node) {
-  return drupal_get_form('og_massadd_massadd_form',$node);
+/* implements hook_views_api */
+function og_massadd_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'og_massadd') . '/includes',
+  );
 }
+
+
+/* implementation of hook_og_ui_get_group_admin_alter */
+function og_massadd_og_ui_get_group_admin_alter(&$data, $gid) {
+  // Hijack the add people to use a custom implementation.
+  $data['add_people']['href'] = 'admin/people/mass-add-user-filter';
+}
+
 
 /**
  * Mass adding users form
  */
-function og_massadd_massadd_form(&$form_state, $node) {
+function og_massadd_massadd_form($form, &$form_state, $group_type, $group_id) {
 
   global $user;
 
-  $ogsubs = og_get_subscriptions($user->uid);
-  $ogs = array();
-  foreach ($ogsubs as $i => $ogsub) {
-    if ($ogsub['is_admin'] || $ogsub['nid'] == $node->nid)
-      $ogs[$ogsub['nid']] = $ogsub['title'];
-  }
-  
-  $form['ogs'] = array(
-    '#type' => 'checkboxes',
+  $form['group_type'] = array(
+    '#type' => 'value',
+    '#value' => $group_type,
+  );
+
+  $form['group_ids'] = array(
+    '#type' => 'value',
     '#title' => t('Groups to add the user to'),
-    '#options' => $ogs,
-    '#default_value' => array($node->nid),
+    '#value' => array($group_id),
     '#required' => TRUE,
   );
 
@@ -83,15 +114,6 @@ function og_massadd_massadd_form(&$form_state, $node) {
     '#rows' => 20,
     '#default_value' => '',
   );
-
-/*
-  $form['#attributes'] = array('enctype' => "multipart/form-data");
-  $form['massadd_csv'] = array(
-    '#type' => 'file',
-    '#title' => t('Upload a CSV file of users.'),
-    '#description' => t('Upload a CSV file with users to add. We will attempt to autodetect the format. If that fails, FIRSTNAME, LASTNAME, EMAIL is assumed.')
-  );
-*/
 
   $form['submit'] = array(
     '#type' => 'submit',
@@ -109,7 +131,7 @@ function og_massadd_massadd_form_validate($form, &$form_state) {
   if (!trim($form_state['values']['massadd']) && !$gotfile) {
     form_set_error('massadd', t("No users to add!"));
   }
-  else if (trim($form_state['values']['massadd']) && !_og_massadd_textareavalidate($form_state['values']['massadd'])) {
+  elseif (trim($form_state['values']['massadd']) && !_og_massadd_textareavalidate($form_state['values']['massadd'])) {
     form_set_error('massadd', t("Unknown format of userlist!"));
   }
 }
@@ -118,18 +140,21 @@ function og_massadd_massadd_form_validate($form, &$form_state) {
  * Validate text area contents
  */
 function _og_massadd_textareavalidate($input) {
-  $data = explode("\n",$input);
+  $data = explode("\n", $input);
   foreach ($data as $i => $line) {
     if (trim($line)) {
       $line = array_map("trim", explode(",", $line));
-      if (!(count($line) > 0 && count($line) < 5)) // Check number of fields 1-5
+      if (!(count($line) > 0 && count($line) < 5)) {// Check number of fields 1-5
         return FALSE;
+      }
       if (count($line) == 5) {
         $email = $line[3];
-      } else {
+      } 
+      else {
         $email = end($line);
       }
-      if (!valid_email_address($email) || empty($email)) {
+
+      if ((!valid_email_address($email) || empty($email)) &&  !user_load_by_name($email)) {
         return FALSE;
       }
     }
@@ -141,18 +166,16 @@ function _og_massadd_textareavalidate($input) {
  * Mass adding users submit function
  */
 function og_massadd_massadd_form_submit($form, &$form_state) {
-
-  _og_massadd_fromstring($form_state['values']['massadd'], $form_state['values']['ogs']);
-
+  _og_massadd_fromstring($form_state['values']['massadd'], $form_state['values']['group_type'], $form_state['values']['group_ids']);
 }
 
 /**
  * Mass adding users from string input
  */
-function _og_massadd_fromstring($input,$groups) {
+function _og_massadd_fromstring($input, $group_type, $group_ids) {
 
   // Fill our data array
-  $data = explode("\n",$input);
+  $data = explode("\n", $input);
   foreach ($data as $i => $line) {
     if (trim($line)) {
       $data[$i] = array_map("trim", explode(",", $line));
@@ -163,29 +186,29 @@ function _og_massadd_fromstring($input,$groups) {
   }
 
   $status = array("new" => array(), "failed" => array(), "existing" => array());
-  foreach($data as $line) {
-    $address = _og_massadd_adduser($line,$groups);
+  foreach ($data as $line) {
+    $address = _og_massadd_adduser($line, $group_type, $group_ids);
     if ($address === FALSE) {
-      $status['failed'][] = implode(",",$line);
+      $status['failed'][] = implode(",", $line);
     }
-    else if ($address == 0) {
-      $status['existing'][] = implode(",",$line);
+    elseif ($address == 0) {
+      $status['existing'][] = implode(",", $line);
     }
-    else if ($address == 1) {
-      $status['new'][] = implode(",",$line);
+    elseif ($address == 1) {
+      $status['new'][] = implode(",", $line);
     }
   }
 
   if (count($status['new'])) {
-    drupal_set_message(t("The following users were created and added to the group(s):") . "<br />" . implode("<br />",$status['new']));
+    drupal_set_message(t("The following users were created and added to the group(s):") . "<br />" . implode("<br />", $status['new']));
   }
 
   if (count($status['existing'])) {
-    drupal_set_message(t("The following users already had an account and were added to the group(s):") . "<br />" . implode("<br />",$status['existing']));
+    drupal_set_message(t("The following users already had an account and were added to the group(s):") . "<br />" . implode("<br />", $status['existing']));
   }
 
   if (count($status['failed'])) {
-    drupal_set_message(t("The following users could not be added:") . "<br />" . implode("<br />",$status['failed']),'error');
+    drupal_set_message(t("The following users could not be added:") . "<br />" . implode("<br />", $status['failed']), 'error');
   }
 
 }
@@ -195,7 +218,7 @@ function _og_massadd_fromstring($input,$groups) {
  * Actually adding something
  * Returns FALSE if the user couldn't be created, 0 if the user existed and 1 if it was created.
  */
-function _og_massadd_adduser($user,$groups) {
+function _og_massadd_adduser($user, $group_type, $group_ids) {
 
   $newuser = array();
   if (count($user) == 1) {
@@ -204,19 +227,19 @@ function _og_massadd_adduser($user,$groups) {
     $mail = reset($user);
     $desiredname = "";
   }
-  else if (count($user) == 2) {
+  elseif (count($user) == 2) {
     $firstname = reset($user);
     $lastname = "";
     $mail = end($user);
     $desiredname = "";
   }
-  else if (count($user) == 3) {
+  elseif (count($user) == 3) {
     $firstname = reset($user);
     $lastname = next($user);
     $mail = end($user);
     $desiredname = "";
   }
-  else if (count($user) >= 4) {
+  elseif (count($user) >= 4) {
     $firstname = reset($user);
     $lastname = next($user);
     $mail = next($user);
@@ -231,12 +254,29 @@ function _og_massadd_adduser($user,$groups) {
   
   // If it looks like a mail address, try to look up user
   if (valid_email_address($mail)) {
-    $account = user_load(array('mail' => check_plain($mail)));
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'user')
+           ->propertyCondition('mail', check_plain($mail));
+    $result = $query->execute();
+    $uids = array_keys($result['user']);
+
+    if (!empty($uids)) {
+      $account = user_load_multiple($uids);
+      $account = array_shift($account);
+    }
   }
 
   // If not, try to check for usernames
-  if (!$account && strlen($mail)) {
-    $account = user_load(array('name' => check_plain($mail)));
+  if (!isset($account) && strlen($mail)) {
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'user')
+           ->propertyCondition('name', check_plain($mail));
+    $result = $query->execute();
+    $uids = array_keys($result['user']);
+    if (!empty($uids)) {
+      $account = user_load_multiple($uids);
+      $account = array_shift($account);
+    }
   }
 
   // Create user if necessary
@@ -244,8 +284,8 @@ function _og_massadd_adduser($user,$groups) {
 //dpm($mail, 'Not valid email address');
     return FALSE;
   }
-  else if (!$account && valid_email_address($mail)) {
-    if (!user_access('mass add and create users') || !variable_get("og_massadd_createunknowns",FALSE)) {
+  elseif (!$account && valid_email_address($mail)) {
+    if (!user_access('mass add and create users') || !variable_get("og_massadd_createunknowns", FALSE)) {
 //dpm('Not allowed to create unknowns');
       return FALSE;
     }
@@ -258,7 +298,7 @@ function _og_massadd_adduser($user,$groups) {
 
     for ($attempt = 0 ; $attempt <= 20 ; $attempt++) {
       $newuser['name'] = _og_massadd_createusername($mail, $firstname, $lastname, $desiredname, $attempt);
-      if ($newuser['name'] !== FALSE && !db_result(db_query("SELECT count(*) FROM {users} WHERE name = '%s'", check_plain($newuser['name'])))) {
+      if ($newuser['name'] !== FALSE && !db_query("SELECT count(*) FROM {users} WHERE name = :name", array(':name' => check_plain($newuser['name'])))->fetchField()) {
         $account = user_save(NULL, $newuser);
         if ($account !== FALSE) {
           $account->password = $newuser['pass'];
@@ -301,18 +341,28 @@ function _og_massadd_adduser($user,$groups) {
     node_save($profile_node); // Actually, we don't care if this fails for now. We need better field-handling first.
   }
 
-
   // Add user to groups
-  foreach ($groups as $gid) {
+  foreach ($group_ids as $gid) {
     if ($gid) {
-      og_save_subscription($gid, $account->uid, array('is_active' => 1));
+      $field_names = og_get_group_audience_fields();
+      $field_name = !empty($form_state['values']['field_name']) ? $form_state['values']['field_name'] : key($field_names);
+
+      /* user already belongs to the group */
+      if (og_get_membership($group_type, $gid, 'user', $account->uid)) {
+        return FALSE;
+      }
+
+      $ret = og_membership_create($group_type, $gid, 'user', $account->uid, $field_name);
+      $ret->save();
+      
+/*
       $groupnode = node_load($gid);
       $variables = array(
         '@title' => $groupnode->title,
-        '!group_url'=> url("node/$groupnode->nid", array('absolute' => TRUE))
+        '!group_url' => url("node/$groupnode->nid", array('absolute' => TRUE))
       );
       drupal_mail('og', 'approve_user', $account->mail, user_preferred_language($account), $variables);
-
+*/
     }
   }
   
@@ -354,7 +404,8 @@ The following combinations are tried in order:
   preg_match('/^(.+)(?:@)/', $email, $matches);
   if (!empty($matches[1])) {
     $usernames[] = $matches[1];
-  } else {
+  } 
+  else {
     return FALSE; // We DO need a valid mail address
   }
 
@@ -404,7 +455,7 @@ The following combinations are tried in order:
   
   // Generate a numbered attempt using the first entry in the numbered table.
   $attempt = $attempt - count($usernames);
-  return reset($numbered) . ($attempt +1 );
+  return reset($numbered) . ($attempt + 1 );
 
 }
 
