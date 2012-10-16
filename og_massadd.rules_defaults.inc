@@ -5,7 +5,6 @@
  * Implementation of hook_default_rules_configuration().
  */
 function og_massadd_default_rules_configuration() {
-
 	$items['rules_og_massadd'] = entity_import('rules_config', '{ "rules_add_og_membership" : {
 	    "LABEL" : "add_og_membership",
 	    "PLUGIN" : "action set",
