@@ -14,7 +14,7 @@ function og_massadd_permission() {
   return array(
     'mass add and create users' => array(
       'title' => t('OG mass add and create users'),
-      'description' => t('TODO Add a description for \'mass add and create users\'')
+      'description' => t('OG mass add and create users')
     ));
 }
 
@@ -24,8 +24,8 @@ function og_massadd_permission() {
  */
 function og_massadd_menu() {
 
-  $items['admin/config/og_massadd'] = array(
-    'title' => 'og_massadd',
+  $items['admin/config/group/og_massadd'] = array(
+    'title' => 'Og Mass Add',
     'description' => 'Configure og_massadd',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('og_massadd_admin_settings'),
@@ -251,16 +251,16 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
   }
 
   $didcreate = 0;
-  
+
   // If it looks like a mail address, try to look up user
   if (valid_email_address($mail)) {
     $query = new EntityFieldQuery();
     $query->entityCondition('entity_type', 'user')
            ->propertyCondition('mail', check_plain($mail));
     $result = $query->execute();
-    $uids = array_keys($result['user']);
 
-    if (!empty($uids)) {
+    if (!empty($result)) {
+      $uids = array_keys($result['user']);
       $account = user_load_multiple($uids);
       $account = array_shift($account);
     }
@@ -272,19 +272,20 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
     $query->entityCondition('entity_type', 'user')
            ->propertyCondition('name', check_plain($mail));
     $result = $query->execute();
-    $uids = array_keys($result['user']);
-    if (!empty($uids)) {
+    
+    if (!empty($result)) {
+      $uids = array_keys($result['user']);
       $account = user_load_multiple($uids);
       $account = array_shift($account);
     }
   }
 
   // Create user if necessary
-  if (!$account && !valid_email_address($mail)) {
+  if (!isset($account) && !valid_email_address($mail)) {
 //dpm($mail, 'Not valid email address');
     return FALSE;
   }
-  elseif (!$account && valid_email_address($mail)) {
+  elseif (!isset($account) && valid_email_address($mail)) {
     if (!user_access('mass add and create users') || !variable_get("og_massadd_createunknowns", FALSE)) {
 //dpm('Not allowed to create unknowns');
       return FALSE;
@@ -315,30 +316,18 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
     }
   }
 
-  $profilenode = module_exists('content_profile') ? variable_get('og_massadd_profilenode', '') : '';
+  if (variable_get('og_massadd_createunknowns', '')) {
+    $fname = variable_get('og_massadd_profilefname', '');
+    $lname = variable_get('og_massadd_profilelname', '');
 
-  if ($profilenode) {
-    $fname = variable_get('og_massadd_profilefname', 'firstname');
-    $lname = variable_get('og_massadd_profilelname', 'lastname');
-    $profilenodes = array_keys(content_profile_get_types('names'));
-    // Create content profile
-    $profile_node = new stdClass();
-    $profile_node->title = $account->name;
-    $profile_node->body = '';
-    $profile_node->type = $profilenode;   // Your specified content type
-    $profile_node->created = time();
-    $profile_node->changed = time();
-    $profile_node->status = 1;
-    $profile_node->promote = 0;
-    $profile_node->sticky = 0;
-    $profile_node->uid = $account->uid; // UID of content owner
-    if (strlen($fname) && content_fields($fname, $profilenode)) {
-      $profile_node->{$fname}[0]['value'] = $firstname;
+    if (strlen($fname) && field_info_field($fname)) {
+      $account->{$fname}['und'][0]['value'] = $firstname;
     }
-    if (strlen($lname) && content_fields($lname, $profilenode)) {
-      $profile_node->{$lname}[0]['value'] = $lastname;
+    if (strlen($lname) && field_info_field($lname)) {
+      $account->{$lname}['und'][0]['value'] = $lastname;
     }
-    node_save($profile_node); // Actually, we don't care if this fails for now. We need better field-handling first.
+
+    user_save($account); // Actually, we don't care if this fails for now. We need better field-handling first.
   }
 
   // Add user to groups
