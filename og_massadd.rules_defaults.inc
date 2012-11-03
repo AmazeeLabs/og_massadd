@@ -1,6 +1,14 @@
 <?php
 
 /**
+ * @file
+ * Rules integration for the Organic groups Mass Add.
+ *
+ * @addtogroup rules
+ * @{
+ */
+
+/**
  * Implements hook_default_rules_configuration().
  */
 function og_massadd_default_rules_configuration() {
