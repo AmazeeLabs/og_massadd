@@ -5,22 +5,21 @@
  * The og_massadd module file
  */
 
-// !** General functions
-
 /**
- * Implementation of hook_permission().
+ * Implements of hook_permission().
  */
 function og_massadd_permission() {
   return array(
     'mass add and create users' => array(
       'title' => t('OG mass add and create users'),
       'description' => t('OG mass add and create users')
-    ));
+    ),
+  );
 }
 
 
 /**
- * Implement hook_menu
+ * Implements hook_menu().
  */
 function og_massadd_menu() {
 
