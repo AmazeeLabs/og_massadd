@@ -12,7 +12,7 @@ function og_massadd_permission() {
   return array(
     'mass add and create users' => array(
       'title' => t('OG mass add and create users'),
-      'description' => t('OG mass add and create users')
+      'description' => t('OG mass add and create users'),
     ),
   );
 }
@@ -45,7 +45,7 @@ function og_massadd_menu() {
   );
 
   $items['group/%/%/admin/people/mass-add-user-filter'] = array(
-    'page callback' => 'og_mass_add_user_filter',
+    'page callback' => 'ogmass_add_user_filter',
     'page arguments' => array(1, 2),
     'type' => MENU_LOCAL_TASK,
     'weight' => 4,
@@ -57,7 +57,10 @@ function og_massadd_menu() {
   return $items;
 }
 
-function og_mass_add_user_filter($group_type, $group_id) {
+/**
+ * Callback to show the needed view to add users using VBO.
+ */
+function ogmass_add_user_filter($group_type, $group_id) {
 
   if (is_numeric($group_id)) {
     og_context($group_type, node_load($group_id));
@@ -71,7 +74,9 @@ function og_mass_add_user_filter($group_type, $group_id) {
   }
 }
 
-/* implements hook_views_api */
+/**
+ * Implements hook_views_api().
+ */
 function og_massadd_views_api() {
   return array(
     'api' => 3,
@@ -118,7 +123,7 @@ function og_massadd_massadd_form($form, &$form_state, $group_type, $group_id) {
     '#type' => 'submit',
     '#value' => t('Add users'),
   );
-  
+
   return $form;
 }
 
