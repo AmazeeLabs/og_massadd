@@ -7,23 +7,18 @@
  */
 
 /**
- * Implementation of hook_requirements().
- */
-
-/**
- * Implementation of hook_install().
+ * Implements hook_install().
  */
 function og_massadd_install() {
-//  variable_set('certify_certificate_path', '/var/drupal-content/certify/');
+  //  variable_set('certify_certificate_path', '/var/drupal-content/certify/');
   drupal_set_message(st("Organic Groups Mass Add settings are available under !link",
     array( '!link' => l(st('Administer > Site configuration > OG Mass Add'),  'admin/config/og_massadd' ) )
   ));
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implements of hook_uninstall().
  */
 function og_massadd_uninstall() {
-//  variable_del('certify_certificate_path');
+	//  variable_del('certify_certificate_path');
 }
-
