@@ -20,5 +20,5 @@ function og_massadd_install() {
  * Implements of hook_uninstall().
  */
 function og_massadd_uninstall() {
-	//  variable_del('certify_certificate_path');
+  //  variable_del('certify_certificate_path');
 }

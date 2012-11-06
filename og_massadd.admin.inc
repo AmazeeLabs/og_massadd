@@ -63,17 +63,17 @@ function og_massadd_admin_settings() {
 function og_massadd_admin_settings_validate($form, $form_state) {
 
   $profilenode = $form_state['values']['og_massadd_profilenode'];
-  if (strlen($profilenode) && !field_info_field($profilenode)) {
+  if (drupal_strlen($profilenode) && !field_info_field($profilenode)) {
     form_set_error('og_massadd_profilenode', t('Please choose a profile node (or leave blank).'));
   }
 
   $fname = $form_state['values']['og_massadd_profilefname'];
-  if (strlen($profilenode) && strlen($fname) && !field_info_field($fname)) {
+  if (drupal_strlen($profilenode) && drupal_strlen($fname) && !field_info_field($fname)) {
     form_set_error('og_massadd_profilefname', t('Please choose a field for the user\'s first name or leave empty.'));
   }
 
   $lname = $form_state['values']['og_massadd_profilelname'];
-  if (strlen($profilenode) && strlen($lname) && !field_info_field($lname, $profilenode)) {
+  if (drupal_strlen($profilenode) && drupal_strlen($lname) && !field_info_field($lname, $profilenode)) {
     form_set_error('og_massadd_profilelname', t('Please choose a field for the user\'s last name or leave empty.'));
   }
 

@@ -85,7 +85,7 @@ function og_massadd_views_api() {
 }
 
 
-/* implementation of hook_og_ui_get_group_admin_alter */
+/* implements of hook_og_ui_get_group_admin_alter(). */
 function og_massadd_og_ui_get_group_admin_alter(&$data, $gid) {
   // Hijack the add people to use a custom implementation.
   $data['add_people']['href'] = 'admin/people/mass-add-user-filter';
@@ -153,7 +153,7 @@ function _og_massadd_textareavalidate($input) {
       }
       if (count($line) == 5) {
         $email = $line[3];
-      } 
+      }
       else {
         $email = end($line);
       }
@@ -260,7 +260,7 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
   if (valid_email_address($mail)) {
     $query = new EntityFieldQuery();
     $query->entityCondition('entity_type', 'user')
-           ->propertyCondition('mail', check_plain($mail));
+          ->propertyCondition('mail', check_plain($mail));
     $result = $query->execute();
 
     if (!empty($result)) {
@@ -271,12 +271,12 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
   }
 
   // If not, try to check for usernames
-  if (!isset($account) && strlen($mail)) {
+  if (!isset($account) && drupal_strlen($mail)) {
     $query = new EntityFieldQuery();
     $query->entityCondition('entity_type', 'user')
-           ->propertyCondition('name', check_plain($mail));
+          ->propertyCondition('name', check_plain($mail));
     $result = $query->execute();
-    
+
     if (!empty($result)) {
       $uids = array_keys($result['user']);
       $account = user_load_multiple($uids);
@@ -303,6 +303,7 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
 
     for ($attempt = 0 ; $attempt <= 20 ; $attempt++) {
       $newuser['name'] = _og_massadd_createusername($mail, $firstname, $lastname, $desiredname, $attempt);
+
       if ($newuser['name'] !== FALSE && !db_query("SELECT count(*) FROM {users} WHERE name = :name", array(':name' => check_plain($newuser['name'])))->fetchField()) {
         $account = user_save(NULL, $newuser);
         if ($account !== FALSE) {
@@ -324,10 +325,10 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
     $fname = variable_get('og_massadd_profilefname', '');
     $lname = variable_get('og_massadd_profilelname', '');
 
-    if (strlen($fname) && field_info_field($fname)) {
+    if (drupal_strlen($fname) && field_info_field($fname)) {
       $account->{$fname}['und'][0]['value'] = $firstname;
     }
-    if (strlen($lname) && field_info_field($lname)) {
+    if (drupal_strlen($lname) && field_info_field($lname)) {
       $account->{$lname}['und'][0]['value'] = $lastname;
     }
 
@@ -347,7 +348,7 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
 
       $ret = og_membership_create($group_type, $gid, 'user', $account->uid, $field_name);
       $ret->save();
-      
+
 /*
       $groupnode = node_load($gid);
       $variables = array(
@@ -355,10 +356,10 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
         '!group_url' => url("node/$groupnode->nid", array('absolute' => TRUE))
       );
       drupal_mail('og', 'approve_user', $account->mail, user_preferred_language($account), $variables);
-*/
+ */
     }
   }
-  
+
   return $didcreate;
 }
 
@@ -368,7 +369,6 @@ function _og_massadd_adduser($user, $group_type, $group_ids) {
 function _og_massadd_createusername($email, $firstname = '', $lastname = '', $suggestion = '', $attempt = 0) {
 
 /*
-
 The following combinations are tried in order:
 
 1: If one is provided, the suggested username
@@ -380,31 +380,30 @@ The following combinations are tried in order:
 5. If lastname is provided without firstname, lastname only.
 6. If both firstname and lastname is provided, try adding numbers 1 and up to a name formatted as F.Lastname where F is the first letter of firstname.
 7. Last (only performed if the previous combination didn't) add numbers 1 and up to the first part of the email address.
-
-*/
+ */
 
   $usernames = array();
   $numbered = array();
-  
+
   // First, create the verbatim names to try
 
   // #1 pri: suggested username
   if (!empty($suggestion)) {
     $usernames[] = $suggestion;
   }
-  
+
   // #2 pri: first part of email address (always present)
   preg_match('/^(.+)(?:@)/', $email, $matches);
   if (!empty($matches[1])) {
     $usernames[] = $matches[1];
-  } 
+  }
   else {
     return FALSE; // We DO need a valid mail address
   }
 
   // #3 pri: username on the form of [x number of letters from first name, starting from 1 and up].[lastname]
   if (!empty($firstname) && !empty($lastname)) {
-    for ($i = 1 ; $i < strlen($firstname) ; $i++) {
+    for ($i = 1 ; $i < drupal_strlen($firstname) ; $i++) {
       $username = '';
       if (!empty($firstname)) { // Add firstname if present
         $username .= drupal_substr($firstname, 0, ($i));
@@ -417,19 +416,19 @@ The following combinations are tried in order:
       $usernames[] = $username;
     }
   }
-  
+
   // #4 pri: if no lastname, use firstname only
   if (!empty($firstname) && empty($lastname)) {
     $usernames[] = $firstname;
   }
-  
+
   // #5 pri: if no firstname, use lastname only
   if (empty($firstname) && !empty($lastname)) {
     $usernames[] = $lastname;
   }
-  
+
   // Create names to add numbers to as last resort. Different priorities than the verbatim names
-  
+
   // #1 pri: [first letter of first name].[lastname]
   if (!empty($firstname) && !empty($lastname)) {
     $numbered[] = drupal_substr($firstname, 0, 1) . '.' . $lastname;
@@ -445,7 +444,7 @@ The following combinations are tried in order:
   if (isset($usernames[$attempt])) {
     return $usernames[$attempt];
   }
-  
+
   // Generate a numbered attempt using the first entry in the numbered table.
   $attempt = $attempt - count($usernames);
   return reset($numbered) . ($attempt + 1 );

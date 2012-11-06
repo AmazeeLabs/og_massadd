@@ -6,6 +6,9 @@
  * Provides support for the Views module.
  */
 
+/**
+ * "OG Mass Add" entity Views definitions.
+ */
 function og_massadd_views_default_views() {
 
   $view = new view();
@@ -33,24 +36,25 @@ function og_massadd_views_default_views() {
   $handler->display->display_options['pager']['options']['items_per_page'] = '10';
   $handler->display->display_options['style_plugin'] = 'table';
   $handler->display->display_options['style_options']['columns'] = array(
-   'name' => 'name',
-   'views_bulk_operations' => 'views_bulk_operations',
-   );
+    'name' => 'name',
+    'views_bulk_operations' => 'views_bulk_operations',
+    );
   $handler->display->display_options['style_options']['default'] = '-1';
   $handler->display->display_options['style_options']['info'] = array(
-   'name' => array(
-     'sortable' => 0,
-     'default_sort_order' => 'asc',
-     'align' => '',
-     'separator' => '',
-     'empty_column' => 0,
-     ),
-   'views_bulk_operations' => array(
-     'align' => '',
-     'separator' => '',
-     'empty_column' => 0,
-     ),
-   );
+    'name' => array(
+      'sortable' => 0,
+      'default_sort_order' => 'asc',
+      'align' => '',
+      'separator' => '',
+      'empty_column' => 0,
+  ),
+  'views_bulk_operations' => array(
+    'align' => '',
+      'separator' => '',
+      'empty_column' => 0,
+    ),
+  );
+
   /* Field: User: Name */
   $handler->display->display_options['fields']['name']['id'] = 'name';
   $handler->display->display_options['fields']['name']['table'] = 'users';
@@ -74,42 +78,42 @@ function og_massadd_views_default_views() {
      'skip_confirmation' => 1,
      'override_label' => 1,
      'label' => 'Add user to group',
-     ),
+    ),
    'action::system_block_ip_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::user_block_user_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::views_bulk_operations_delete_item' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::system_message_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::views_bulk_operations_script_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::views_bulk_operations_modify_action' => array(
      'selected' => 0,
      'use_queue' => 0,
@@ -120,16 +124,16 @@ function og_massadd_views_default_views() {
        'show_all_tokens' => 1,
        'display_values' => array(
          '_all_' => '_all_',
-         ),
-       ),
-     ),
+        ),
+      ),
+    ),
    'action::views_bulk_operations_user_roles_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::views_bulk_operations_argument_selector_action' => array(
      'selected' => 0,
      'skip_confirmation' => 0,
@@ -137,30 +141,30 @@ function og_massadd_views_default_views() {
      'label' => '',
      'settings' => array(
        'url' => '',
-       ),
-     ),
+      ),
+    ),
    'action::system_goto_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'action::system_send_email_action' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 0,
      'override_label' => 0,
      'label' => '',
-     ),
+    ),
    'rules_component::rules_teste' => array(
      'selected' => 0,
      'use_queue' => 0,
      'skip_confirmation' => 1,
      'override_label' => 0,
      'label' => '',
-     ),
-   );
+    ),
+  );
 
   /* Sort criterion: User: Name */
   $handler->display->display_options['sorts']['name']['id'] = 'name';
@@ -190,10 +194,10 @@ function og_massadd_views_default_views() {
   $handler->display->display_options['filters']['name']['expose']['operator'] = 'name_op';
   $handler->display->display_options['filters']['name']['expose']['identifier'] = 'name';
   $handler->display->display_options['filters']['name']['expose']['remember_roles'] = array(
-   2 => '2',
-   1 => 0,
-   3 => 0,
-   );
+    2 => '2',
+    1 => 0,
+    3 => 0,
+  );
   /* Filter criterion: User: E-mail */
   $handler->display->display_options['filters']['mail']['id'] = 'mail';
   $handler->display->display_options['filters']['mail']['table'] = 'users';
@@ -206,10 +210,10 @@ function og_massadd_views_default_views() {
   $handler->display->display_options['filters']['mail']['expose']['operator'] = 'mail_op';
   $handler->display->display_options['filters']['mail']['expose']['identifier'] = 'mail';
   $handler->display->display_options['filters']['mail']['expose']['remember_roles'] = array(
-   2 => '2',
-   1 => 0,
-   3 => 0,
-   );
+    2 => '2',
+    1 => 0,
+    3 => 0,
+  );
 
   /* Display: Block */
   $handler = $view->new_display('block', 'Block', 'block_1');
