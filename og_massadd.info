@@ -3,5 +3,6 @@ package = "Organic groups"
 description = Allows mass-adding of users to an organic group.
 core = 7.x
 dependencies[] = og
+dependencies[] = og_context
 dependencies[] = rules
 dependencies[] = views_bulk_operations

@@ -62,7 +62,14 @@ function og_massadd_menu() {
  */
 function ogmass_add_user_filter($group_type, $group_id) {
 
-  if (is_numeric($group_id)) {
+  // check if user has access to view user profiles which is needed
+  if( !user_access('View user profiles')) {
+    drupal_set_message(t('You need to have access to view user profiles in
+      order to add users to groups. Please configure the needed permission'),
+    'error');
+    return '';
+  }
+  else if (is_numeric($group_id)) {
     og_context($group_type, node_load($group_id));
     $view = views_get_view('og_massadd');
     $view->set_arguments(array($group_id));
