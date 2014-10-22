@@ -95,7 +95,29 @@ function og_massadd_views_api() {
 /* implements of hook_og_ui_get_group_admin_alter(). */
 function og_massadd_og_ui_get_group_admin_alter(&$data, $gid) {
   // Hijack the add people to use a custom implementation.
-  $data['add_people']['href'] = 'admin/people/mass-add-user-filter';
+  //$data['add_people']['href'] = 'admin/people/mass-add-user-filter';
+}
+
+/**
+ * Implements hook_og_ui_get_group_admin().
+ */
+function og_massadd_og_ui_get_group_admin($group_type, $gid) {
+  $items = array();
+
+  if (og_user_access($group_type, $gid, 'add user')) {
+    $items['add_mass_people'] = array(
+      'title' => t('Mass upload of user'),
+      'description' => t('Mass add group members.'),
+      'href' => 'admin/people/mass-add-user',
+    );
+
+    $items['find_add_mass_people'] = array(
+      'title' => t('Find and add users'),
+      'description' => t('Find and add group members.'),
+      'href' => 'admin/people/mass-add-user-filter',
+    );
+  }
+  return $items;
 }
 
 
