@@ -479,3 +479,71 @@ The following combinations are tried in order:
   return reset($numbered) . ($attempt + 1 );
 
 }
+
+/**
+ * Implements hook_action_info().
+ */
+function og_massadd_action_info() {
+  return array('og_massadd_add_users_to_group' => array(
+    'type' => 'user',
+    'label' => t('Add users to group'),
+    'configurable' => TRUE,
+    'triggers' => array('any'),
+  ));
+}
+
+/**
+ * Configuration form for the og_massadd_add_users_to_group action.
+ */
+function og_massadd_add_users_to_group_form($context) {
+  $group_from_context = og_context();
+  // If we could not determine any group from the context, then we reload the
+  // page, with a message.
+  if (empty($group_from_context)) {
+    drupal_set_message(t('No available group could be found in the current context.'), 'warning');
+    $query = drupal_get_query_parameters(NULL, array('q'));
+    drupal_goto($_GET['q'], array('query' => $query));
+  }
+
+  // If we are here, we could get a group from the context, so we can continue.
+  $form['group'] = array(
+    '#type' => 'value',
+    '#value' => $group_from_context,
+  );
+  $group = entity_load_single($group_from_context['group_type'], $group_from_context['gid']);
+  list(,,$bundle) = entity_extract_ids($group_from_context['group_type'], $group);
+  $roles = og_roles($group_from_context['group_type'], $bundle, $group_from_context['gid'], FALSE, FALSE);
+  $form['roles'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Roles'),
+    '#options' => $roles,
+  );
+  return $form;
+}
+
+/**
+ * Submit handler for the og_massadd_add_users_to_group action confirmation form.
+ */
+function og_massadd_add_users_to_group_submit(&$form, &$form_state) {
+  return array(
+    'roles' => array_filter($form_state['values']['roles']),
+    'group' => $form_state['values']['group'],
+  );
+}
+
+/**
+ * Callback function for the og_massadd_add_users_to_group action.
+ */
+function og_massadd_add_users_to_group($account, $context) {
+  $values = array(
+    'entity_type' => 'user',
+    'entity' => $account,
+  );
+  og_group($context['group']['group_type'], $context['group']['gid'], $values);
+  // Check if we have to grant some roles.
+  if (!empty($context['roles'])) {
+    foreach ($context['roles'] as $rid) {
+      og_role_grant($context['group']['group_type'], $context['group']['gid'], $account->uid, $rid);
+    }
+  }
+}
